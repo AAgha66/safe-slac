@@ -2,6 +2,7 @@
 echo "Running setup script."
 
 # activate env
+source /root/miniconda3/bin/activate
 conda activate safe-slac
 
 # go to the repo directory
