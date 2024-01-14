@@ -14,6 +14,7 @@ pip install -r requirements.txt
 # this is in the general case (we use the system python above, so we could
 # have just hardcoded this as well)
 export python_path="/root/miniconda3/envs/safe-slac/bin/python"
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco200/bin
 cat > $CLEARML_CUSTOM_BUILD_OUTPUT << EOL
 {
   "binary": "$python_path",
