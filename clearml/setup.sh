@@ -17,7 +17,7 @@ export python_path="/root/miniconda3/envs/safe-slac/bin/python"
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco200/bin
 cat > $CLEARML_CUSTOM_BUILD_OUTPUT << EOL
 {
-  "binary": "$python_path",
+  "binary": "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/.mujoco/mujoco200/bin && $python_path",
   "entry_point": "$CLEARML_GIT_ROOT/$CLEARML_TASK_SCRIPT_ENTRY",
   "working_dir": "$CLEARML_GIT_ROOT/$CLEARML_TASK_WORKING_DIR"
 }
