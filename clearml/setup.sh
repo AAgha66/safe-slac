@@ -2,7 +2,7 @@
 echo "Running setup script."
 
 # activate env
-source /root/miniconda3/envs/safe-slac/bin/python
+conda activate safe-slac
 
 # go to the repo directory
 cd $CLEARML_GIT_ROOT
