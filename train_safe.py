@@ -13,11 +13,13 @@ from slac.trainer import Trainer
 import json
 from configuration import get_default_config
 
+
 def get_git_short_hash():
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
     sha_first_7_chars = sha[:7]
     return sha_first_7_chars
+
 
 def main(args):
     config = get_default_config()
@@ -25,9 +27,20 @@ def main(args):
     config["task_name"] = args.task_name
     config["seed"] = args.seed
     config["num_steps"] = args.num_steps
+    config["use_pixels"] = args.use_pixels
 
-    env = make_safety(f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0', image_size=config["image_size"], use_pixels=True, action_repeat=config["action_repeat"])
-    env_test = make_safety(f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0', image_size=config["image_size"], use_pixels=True, action_repeat=config["action_repeat"])
+    env = make_safety(
+        f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+        image_size=config["image_size"],
+        use_pixels=config["use_pixels"],
+        action_repeat=config["action_repeat"],
+    )
+    env_test = make_safety(
+        f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+        image_size=config["image_size"],
+        use_pixels=config["use_pixels"],
+        action_repeat=config["action_repeat"],
+    )
     short_hash = get_git_short_hash()
     log_dir = os.path.join(
         "logs",
@@ -73,7 +86,7 @@ def main(args):
         num_eval_episodes=config["num_eval_episodes"],
         action_repeat=config["action_repeat"],
         train_steps_per_iter=config["train_steps_per_iter"],
-        env_steps_per_train_step=config["env_steps_per_train_step"]
+        env_steps_per_train_step=config["env_steps_per_train_step"],
     )
     trainer.writer.add_text("config", json.dumps(config), 0)
     trainer.train()
@@ -81,11 +94,21 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num_steps", type=int, default=2 * 10 ** 6, help="Number of training steps")
-    parser.add_argument("--domain_name", type=str, default="Safexp", help="Name of the domain")
-    parser.add_argument("--task_name", type=str, default="PointGoal1", help="Name of the task")
+    parser.add_argument(
+        "--num_steps",
+        type=int,
+        default=2 * 10**6,
+        help="Number of training steps",
+    )
+    parser.add_argument(
+        "--domain_name", type=str, default="Safexp", help="Name of the domain"
+    )
+    parser.add_argument(
+        "--task_name", type=str, default="PointGoal1", help="Name of the task"
+    )
     parser.add_argument("--seed", type=int, default=314, help="Random seed")
-    parser.add_argument("--cuda", action="store_true", help="Train using GPU with CUDA")
+    parser.add_argument(
+        "--cuda", action="store_true", help="Train using GPU with CUDA"
+    )
     args = parser.parse_args()
     main(args)
-
