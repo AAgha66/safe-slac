@@ -125,5 +125,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--pixels", action="store_true", help="use image observations"
     )
+    parser.add_argument(
+        "--local", action="store_true", help="not running on cluster"
+    )
     args = parser.parse_args()
     main(args)
