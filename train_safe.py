@@ -4,7 +4,7 @@ from datetime import datetime
 import random
 import git
 from matplotlib.pyplot import get
-
+import clearml
 import torch
 
 from slac.algo import LatentPolicySafetyCriticSlac, SafetyCriticSlacAlgorithm
@@ -23,11 +23,22 @@ def get_git_short_hash():
 
 def main(args):
     config = get_default_config()
-    config["domain_name"] = args.domain_name
-    config["task_name"] = args.task_name
-    config["seed"] = args.seed
-    config["num_steps"] = args.num_steps
-    config["use_pixels"] = args.pixels
+    if not config.local:
+        task = clearml.Task.init()
+        task_params = task.get_parameters_as_dict(cast=True)
+        d = task_params["internal"]
+        config["domain_name"] = d["domain_name"]
+        config["task_name"] = d["task_name"]
+        config["seed"] = d["seed"]
+        config["num_steps"] = d["num_steps"]
+        config["use_pixels"] = d["pixels"]
+    else:
+        config["domain_name"] = args.domain_name
+        config["task_name"] = args.task_name
+        config["seed"] = args.seed
+        config["num_steps"] = args.num_steps
+        config["use_pixels"] = args.pixels
+
     print(f"use_pixels: {config['use_pixels']} !")
 
     env = make_safety(
