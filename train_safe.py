@@ -27,7 +27,7 @@ def main(args):
     config["task_name"] = args.task_name
     config["seed"] = args.seed
     config["num_steps"] = args.num_steps
-    config["use_pixels"] = args.use_pixels
+    config["use_pixels"] = args.pixels
 
     env = make_safety(
         f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
@@ -109,6 +109,9 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=314, help="Random seed")
     parser.add_argument(
         "--cuda", action="store_true", help="Train using GPU with CUDA"
+    )
+    parser.add_argument(
+        "--pixels", action="store_true", help="use image observations"
     )
     args = parser.parse_args()
     main(args)
