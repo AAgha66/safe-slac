@@ -1,4 +1,5 @@
 import math
+from turtle import st
 
 import numpy as np
 import torch
@@ -111,6 +112,76 @@ class Decoder(torch.jit.ScriptModule):
         _, C, W, H = x.size()
         x = x.view(B, S, C, W, H)
         return x, torch.ones_like(x).mul_(self.std)
+
+class PropDecoder(torch.jit.ScriptModule):
+    """
+    Decoder.
+    """
+
+    def __init__(self, input_dim=288, output_dim=3, std=1.0):
+        super(PropDecoder, self).__init__()
+
+        self.net = nn.Sequential(
+            # (32+256, 1, 1) -> (256, 4, 4)
+            nn.Linear(input_dim, 256),
+            nn.LeakyReLU(inplace=True, negative_slope=0.2),
+            # (256, 4, 4) -> (128, 8, 8)
+            nn.Linear(256, 128),
+            nn.LeakyReLU(inplace=True, negative_slope=0.2),
+            # (128, 8, 8) -> (64, 16, 16)
+            nn.Linear(128, 64),
+            nn.LeakyReLU(inplace=True, negative_slope=0.2),
+            # (64, 16, 16) -> (32, 32, 32)
+            nn.Linear(64, 32),
+            nn.LeakyReLU(inplace=True, negative_slope=0.2),
+            # (32, 32, 32) -> (3, 64, 64)
+            nn.Linear(32, output_dim),
+            nn.LeakyReLU(inplace=True, negative_slope=0.2),
+        ).apply(initialize_weight)
+        self.std = std
+
+    @torch.jit.script_method
+    def forward(self, x):
+        B, S, latent_dim = x.size()
+        x = x.view(B * S, latent_dim)
+        x = self.net(x)
+        _, C = x.size()
+        x = x.view(B, S, C)
+        return x, torch.ones_like(x).mul_(self.std)
+
+class PropEncoder(torch.jit.ScriptModule):
+    """
+    Encoder.
+    """
+
+    def __init__(self, input_dim=3, output_dim=256):
+        super(PropEncoder, self).__init__()
+
+        self.net = nn.Sequential(
+            # (3, 64, 64) -> (32, 32, 32)
+            nn.Linear(input_dim, 32),
+            nn.ELU(inplace=True),
+            # (32, 32, 32) -> (64, 16, 16)
+            nn.Linear(32, 64),
+            nn.ELU(inplace=True),
+            # (64, 16, 16) -> (128, 8, 8)
+            nn.Linear(64, 128),
+            nn.ELU(inplace=True),
+            # (128, 8, 8) -> (256, 4, 4)
+            nn.Linear(128, 256),
+            nn.ELU(inplace=True),
+            # (256, 4, 4) -> (256, 1, 1)
+            nn.Linear(256, output_dim),
+            nn.ELU(inplace=True),
+        ).apply(initialize_weight)
+
+    @torch.jit.script_method
+    def forward(self, x):
+        B, S, C = x.size()
+        x = x.view(B * S, C)
+        x = self.net(x)
+        x = x.view(B, S, -1)
+        return x
 
 class Encoder(torch.jit.ScriptModule):
     """
@@ -297,7 +368,8 @@ class CostLatentModel(torch.jit.ScriptModule):
         z1_dim=32,
         z2_dim=256,
         hidden_units=(256, 256),
-        image_noise=0.1
+        image_noise=0.1,
+        pixels=True
     ):
         super(CostLatentModel, self).__init__()
         self.bceloss = torch.nn.BCELoss(reduction="none")
@@ -343,16 +415,23 @@ class CostLatentModel(torch.jit.ScriptModule):
             1,
             hidden_units,
         )
-        
+
 
         # feat(t) = Encoder(x(t))
-        self.encoder = Encoder(state_shape[0], feature_dim)
+        if pixels:
+            self.encoder = Encoder(int(state_shape[0]), feature_dim)
+            self.decoder = Decoder(z1_dim + z2_dim, 
+                                int(state_shape[0]), 
+                                std=np.sqrt(image_noise),
+                            )
+        else:
+            self.encoder = PropEncoder(int(state_shape[0]), feature_dim)
+            self.decoder = PropDecoder(z1_dim + z2_dim, 
+                                int(state_shape[0]), 
+                                std=np.sqrt(image_noise),
+                            )
         # p(x(t) | z1(t), z2(t))
-        self.decoder = Decoder(
-            z1_dim + z2_dim,
-            state_shape[0],
-            std=np.sqrt(image_noise),
-        )
+        
         self.apply(initialize_weight)
 
     @torch.jit.script_method

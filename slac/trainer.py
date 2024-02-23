@@ -72,7 +72,8 @@ class Trainer:
         num_eval_episodes=3,
         env_steps_per_train_step=1,
         action_repeat=1,
-        train_steps_per_iter=1
+        train_steps_per_iter=1,
+        pixels=True,
     ):
         # Env to collect samples.
         self.env = env
@@ -107,6 +108,7 @@ class Trainer:
         self.num_eval_episodes = num_eval_episodes
         self.env_steps_per_train_step=env_steps_per_train_step
         self.collect_with_policy = collect_with_policy
+        self.pixels = pixels
 
     def debug_save_obs(self, state, name, step=0):
         self.writer.add_image(f"observation_{name}", state.astype(np.uint8), global_step=step)
@@ -117,9 +119,11 @@ class Trainer:
         # Episode's timestep.
         t = 0
         # Initialize the environment.
-        self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.pixels:
+            self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         state = self.env.reset()
-        self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.pixels:
+            self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         self.ob.reset_episode(state)
         self.algo.buffer.reset_episode(state)
 
@@ -181,11 +185,14 @@ class Trainer:
         for i in range(self.num_eval_episodes):
             self.algo.z1 = None
             self.algo.z2 = None
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+            if self.pixels:
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             state = self.env_test.reset()
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+            if self.pixels:
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             self.ob_test.reset_episode(state)
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+            if self.pixels:
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             episode_return = 0.0
             cost_return = 0.0
             done = False
@@ -210,9 +217,11 @@ class Trainer:
                     self.debug_save_obs(reconstruction, "eval_reconstruction", step_env)
                 steps_until_dump_obs -= 1
                 
-                self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+                if self.pixels:
+                    self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
                 state, reward, done, info = self.env_test.step(action)
-                self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+                if self.pixels:
+                    self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
                 cost = info["cost"]
                 
                 self.ob_test.append(state, action)

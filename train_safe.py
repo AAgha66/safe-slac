@@ -23,7 +23,7 @@ def get_git_short_hash():
 
 def main(args):
     config = get_default_config()
-    if not config.local:
+    if not args.local:
         task = clearml.Task.init()
         task_params = task.get_parameters_as_dict(cast=True)
         d = task_params["internal"]
@@ -82,6 +82,7 @@ def main(args):
         grad_clip_norm=config["grad_clip_norm"],
         tau=config["tau"],
         image_noise=config["image_noise"],
+        pixels=config["use_pixels"],
     )
     trainer = Trainer(
         num_sequences=config["num_sequences"],
@@ -99,6 +100,7 @@ def main(args):
         action_repeat=config["action_repeat"],
         train_steps_per_iter=config["train_steps_per_iter"],
         env_steps_per_train_step=config["env_steps_per_train_step"],
+        pixels=config["use_pixels"],
     )
     trainer.writer.add_text("config", json.dumps(config), 0)
     trainer.train()
