@@ -28,6 +28,7 @@ def main(args):
     config["seed"] = args.seed
     config["num_steps"] = args.num_steps
     config["use_pixels"] = args.pixels
+    print(f"use_pixels: {config['use_pixels']} !")
 
     env = make_safety(
         f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
