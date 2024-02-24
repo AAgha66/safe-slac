@@ -122,20 +122,15 @@ class PropDecoder(torch.jit.ScriptModule):
         super(PropDecoder, self).__init__()
 
         self.net = nn.Sequential(
-            # (32+256, 1, 1) -> (256, 4, 4)
-            nn.Linear(input_dim, 256),
+            nn.Linear(input_dim, 400),
             nn.LeakyReLU(inplace=True, negative_slope=0.2),
-            # (256, 4, 4) -> (128, 8, 8)
-            nn.Linear(256, 128),
+            nn.Linear(400, 400),
             nn.LeakyReLU(inplace=True, negative_slope=0.2),
-            # (128, 8, 8) -> (64, 16, 16)
-            nn.Linear(128, 64),
+            nn.Linear(400, 400),
             nn.LeakyReLU(inplace=True, negative_slope=0.2),
-            # (64, 16, 16) -> (32, 32, 32)
-            nn.Linear(64, 32),
+            nn.Linear(400, 400),
             nn.LeakyReLU(inplace=True, negative_slope=0.2),
-            # (32, 32, 32) -> (3, 64, 64)
-            nn.Linear(32, output_dim),
+            nn.Linear(400, output_dim),
             nn.LeakyReLU(inplace=True, negative_slope=0.2),
         ).apply(initialize_weight)
         self.std = std
@@ -158,20 +153,15 @@ class PropEncoder(torch.jit.ScriptModule):
         super(PropEncoder, self).__init__()
 
         self.net = nn.Sequential(
-            # (3, 64, 64) -> (32, 32, 32)
-            nn.Linear(input_dim, 32),
+            nn.Linear(input_dim, 400),
             nn.ELU(inplace=True),
-            # (32, 32, 32) -> (64, 16, 16)
-            nn.Linear(32, 64),
+            nn.Linear(400, 400),
             nn.ELU(inplace=True),
-            # (64, 16, 16) -> (128, 8, 8)
-            nn.Linear(64, 128),
+            nn.Linear(400, 400),
             nn.ELU(inplace=True),
-            # (128, 8, 8) -> (256, 4, 4)
-            nn.Linear(128, 256),
+            nn.Linear(400, 400),
             nn.ELU(inplace=True),
-            # (256, 4, 4) -> (256, 1, 1)
-            nn.Linear(256, output_dim),
+            nn.Linear(400, output_dim),
             nn.ELU(inplace=True),
         ).apply(initialize_weight)
 
