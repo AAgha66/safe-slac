@@ -552,6 +552,7 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         grad_clip_norm=10.0,
         image_noise=0.1,
         pixels=True,
+        domain="sgym"
     ):
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -643,6 +644,7 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         self.create_feature_actions = torch.jit.trace(create_feature_actions, (fake_feature, fake_action))
         self.z1 = None
         self.z2 = None
+        self.domain=domain
 
         if self.pixels:
             self.normalize_obs = normalize_img
@@ -657,14 +659,14 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
             action = np.tanh(np.random.normal(loc=0,scale=2, size=env.action_space.shape))*env.action_space.high
         else:
             action = self.explore(ob)
-        if self.pixels:
+        if self.pixels and self.domain =="sgym":
             env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         state, reward, done, info = env.step(action)
         cost = info["cost"]
         self.lastcost = cost
         self.episode_costreturn += cost
         self.episode_rewardreturn += reward
-        mask = False if t >= env._max_episode_steps else done
+        mask = done
         ob.append(state, action)
 
         self.buffer.append(action, reward, mask, state, done, cost)

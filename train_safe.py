@@ -8,7 +8,7 @@ import clearml
 import torch
 
 from slac.algo import LatentPolicySafetyCriticSlac, SafetyCriticSlacAlgorithm
-from slac.env import make_safety
+from slac.env import make_safety, make_rwrl
 from slac.trainer import Trainer
 import json
 from configuration import get_default_config
@@ -38,18 +38,22 @@ def main(args):
 
     print(f"use_pixels: {config['use_pixels']} !")
 
-    env = make_safety(
-        f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
-        image_size=config["image_size"],
-        use_pixels=config["use_pixels"],
-        action_repeat=config["action_repeat"],
-    )
-    env_test = make_safety(
-        f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
-        image_size=config["image_size"],
-        use_pixels=config["use_pixels"],
-        action_repeat=config["action_repeat"],
-    )
+    if args.domain_name=="Safexp":
+        env = make_safety(
+            f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+            image_size=config["image_size"],
+            use_pixels=config["use_pixels"],
+            action_repeat=config["action_repeat"],
+        )
+        env_test = make_safety(
+            f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+            image_size=config["image_size"],
+            use_pixels=config["use_pixels"],
+            action_repeat=config["action_repeat"],
+        )
+    else:
+        env = make_rwrl(domain_name="cartpole.realworld_swingup",image_size=(64,64), use_pixels=False)
+        env_test = make_rwrl(domain_name="cartpole.realworld_swingup",image_size=(64,64), use_pixels=False)
     short_hash = get_git_short_hash()
     log_dir = os.path.join(
         "logs",
@@ -80,6 +84,7 @@ def main(args):
         tau=config["tau"],
         image_noise=config["image_noise"],
         pixels=config["use_pixels"],
+        domain="rwrl",
     )
     trainer = Trainer(
         num_sequences=config["num_sequences"],
@@ -98,6 +103,7 @@ def main(args):
         train_steps_per_iter=config["train_steps_per_iter"],
         env_steps_per_train_step=config["env_steps_per_train_step"],
         pixels=config["use_pixels"],
+        domain="rwrl",
     )
     trainer.writer.add_text("config", json.dumps(config), 0)
     trainer.train()
