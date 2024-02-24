@@ -513,6 +513,15 @@ class SafetyCriticSlacAlgorithm:
         torch.save(self.critic.state_dict(), os.path.join(save_dir, "critic.pth"))
         torch.save(self.safety_critic.state_dict(), os.path.join(save_dir, "safety_critic.pth"))
 
+def normalize_img(ob, device):
+    state = torch.tensor(ob.last_state, dtype=torch.float32, device=device).div_(255.0)
+    return state
+
+def normalize_porpioceptive(ob, device):
+    state = torch.tensor(ob.last_state, dtype=torch.float32, device=device)
+    state = torch.sign(state) * torch.log(torch.abs(state)+1)
+    return state
+
 class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
     """
     Latent state-based safe SLAC algorithm.
@@ -635,6 +644,11 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         self.z1 = None
         self.z2 = None
 
+        if self.pixels:
+            self.normalize_obs = normalize_img
+        else:
+            self.normalize_obs = normalize_porpioceptive
+
     def step(self, env, ob, t, is_random, writer=None):
         
         t += 1
@@ -672,7 +686,7 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         return t
 
     def preprocess(self, ob):
-        state = torch.tensor(ob.last_state, dtype=torch.float32, device=self.device).div_(255.0)
+        state = self.normalize_obs(ob, self.device)
         with torch.no_grad():
             feature = self.latent.encoder(state.unsqueeze(0))
         action = torch.tensor(ob.last_action, dtype=torch.float, device=self.device).unsqueeze(0).unsqueeze(0)
