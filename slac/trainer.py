@@ -138,7 +138,8 @@ class Trainer:
             self.algo.update_latent(self.writer)
 
         # Iterate collection, update and evaluation.
-        for step in range(self.initial_collection_steps + 1, self.num_steps // self.action_repeat + 1):
+        bar = tqdm(range(self.initial_collection_steps + 1, self.num_steps // self.action_repeat + 1))
+        for step in bar:
             t = self.algo.step(self.env, self.ob, t, False, self.writer)
             self.algo.update_lag(t, self.writer)
             # Update the algorithm.
@@ -171,17 +172,7 @@ class Trainer:
         reward_returns = []
         cost_returns = []
         steps_until_dump_obs = 20
-        def coord_to_im_(coord):
-            coord = (coord+1.5)*100
-            return coord.astype(int)
         
-        obs_list = []
-        track_list = []
-        recons_list = []
-        video_spf = 2//self.action_repeat
-        video_fps = 25/video_spf
-        render_kwargs = deepcopy(self.env_test.env._render_kwargs["pixels"])
-        render_kwargs["camera_name"] = "track"
         for i in range(self.num_eval_episodes):
             self.algo.z1 = None
             self.algo.z2 = None
@@ -200,21 +191,6 @@ class Trainer:
             while not done:
             
                 action = self.algo.explore(self.ob_test)
-                if i == 0 and eval_step%video_spf == 0:
-                    im = self.ob_test.state[0][-1].astype("uint8")
-                    obs_list.append(im)
-                    reconstruction = sample_reproduction(self.algo.latent, self.algo.device, self.ob_test.state, np.array([self.ob_test._action]))[0][-1]*255
-                    reconstruction = reconstruction.astype("uint8")
-                    recons_list.append(reconstruction)
-                   
-                    track = self.env_test.unwrapped.sim.render(**render_kwargs)[::-1, :, :]
-                    track = np.moveaxis(track,-1,0)
-                    track_list.append(track)
-                if steps_until_dump_obs == 0:
-                    self.debug_save_obs(self.ob_test.state[0][-1], "eval", step_env)
-                    
-                    reconstruction = sample_reproduction(self.algo.latent, self.algo.device, self.ob_test.state, np.array([self.ob_test._action]))[0][-1]*255
-                    self.debug_save_obs(reconstruction, "eval_reconstruction", step_env)
                 steps_until_dump_obs -= 1
                 
                 if self.pixels:
@@ -229,8 +205,6 @@ class Trainer:
                 cost_return += cost
 
                 eval_step += 1
-            if i==0:
-                self.writer.add_video(f"vid/eval", [np.concatenate([obs_list,recons_list,track_list], axis=3)], global_step=step_env, fps=video_fps)
             reward_returns.append(episode_return)
             cost_returns.append(cost_return)
         self.algo.z1 = None
