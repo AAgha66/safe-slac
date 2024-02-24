@@ -27,11 +27,8 @@ def main(args):
         task = clearml.Task.init()
         task_params = task.get_parameters_as_dict(cast=True)
         d = task_params["internal"]
-        config["domain_name"] = d["domain_name"]
-        config["task_name"] = d["task_name"]
-        config["seed"] = d["seed"]
-        config["num_steps"] = d["num_steps"]
-        config["use_pixels"] = d["pixels"]
+        for k,v in d.items():
+            config[k]=v
     else:
         config["domain_name"] = args.domain_name
         config["task_name"] = args.task_name
@@ -67,7 +64,7 @@ def main(args):
         state_shape=env.observation_space.shape,
         action_shape=env.action_space.shape,
         action_repeat=config["action_repeat"],
-        device=torch.device("cuda" if args.cuda else "cpu"),
+        device=torch.device("cuda"),
         seed=config["seed"],
         buffer_size=config["buffer_size"],
         feature_dim=config["feature_dim"],
