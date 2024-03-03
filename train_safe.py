@@ -23,7 +23,7 @@ def get_git_short_hash():
 
 def main(args):
     config = get_default_config()
-    if not config.local:
+    if not args.local:
         task = clearml.Task.init()
         task_params = task.get_parameters_as_dict(cast=True)
         d = task_params["internal"]
