@@ -74,6 +74,7 @@ class Trainer:
         env_steps_per_train_step=1,
         action_repeat=1,
         train_steps_per_iter=1,
+        domain="sgym",
     ):
         # Env to collect samples.
         self.env = env
@@ -112,6 +113,7 @@ class Trainer:
         self.num_eval_episodes = num_eval_episodes
         self.env_steps_per_train_step = env_steps_per_train_step
         self.collect_with_policy = collect_with_policy
+        self.domain = domain
 
     def debug_save_obs(self, state, name, step=0):
         self.writer.add_image(
@@ -124,13 +126,11 @@ class Trainer:
         # Episode's timestep.
         t = 0
         # Initialize the environment.
-        self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[
-            :
-        ] = 1  # render all objects, including hazards
-        state = self.env.reset()
-        self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[
-            :
-        ] = 1  # render all objects, including hazards
+        if self.domain=="sgym":
+            self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        state = self.env.reset()        
+        if self.domain=="sgym":
+            self.env.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         self.ob.reset_episode(state)
         self.algo.buffer.reset_episode(state)
 
@@ -208,22 +208,20 @@ class Trainer:
         recons_list = []
         video_spf = 2 // self.action_repeat
         video_fps = 25 / video_spf
-        render_kwargs = deepcopy(self.env_test.env._render_kwargs["pixels"])
-        render_kwargs["camera_name"] = "track"
+        if self.domain=="sgym":
+            render_kwargs = deepcopy(self.env_test.env._render_kwargs["pixels"])
+            render_kwargs["camera_name"] = "track"
         for i in range(self.num_eval_episodes):
             self.algo.z1 = None
             self.algo.z2 = None
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[
-                :
-            ] = 1  # render all objects, including hazards
+            if self.domain=="sgym":
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             state = self.env_test.reset()
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[
-                :
-            ] = 1  # render all objects, including hazards
+            if self.domain=="sgym":
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             self.ob_test.reset_episode(state)
-            self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[
-                :
-            ] = 1  # render all objects, including hazards
+            if self.domain=="sgym":
+                self.env_test.unwrapped.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             episode_return = 0.0
             cost_return = 0.0
             done = False
@@ -246,11 +244,12 @@ class Trainer:
                     reconstruction = reconstruction.astype("uint8")
                     recons_list.append(reconstruction)
 
-                    track = self.env_test.unwrapped.sim.render(
-                        **render_kwargs
-                    )[::-1, :, :]
-                    track = np.moveaxis(track, -1, 0)
-                    track_list.append(track)
+                    if self.domain=="sgym":
+                        track = self.env_test.unwrapped.sim.render(
+                            **render_kwargs
+                        )[::-1, :, :]
+                        track = np.moveaxis(track, -1, 0)
+                        track_list.append(track)
                 if steps_until_dump_obs == 0:
                     self.debug_save_obs(
                         self.ob_test.state[0][-1], "eval", step_env
@@ -269,14 +268,11 @@ class Trainer:
                         reconstruction, "eval_reconstruction", step_env
                     )
                 steps_until_dump_obs -= 1
-
-                self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[
-                    :
-                ] = 1  # render all objects, including hazards
+                if self.domain=="sgym":
+                    self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
                 state, reward, done, info = self.env_test.step(action)
-                self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[
-                    :
-                ] = 1  # render all objects, including hazards
+                if self.domain=="sgym":
+                    self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
                 cost = info["cost"]
 
                 self.ob_test.append(state, action)
@@ -290,6 +286,10 @@ class Trainer:
                     [
                         np.concatenate(
                             [obs_list, recons_list, track_list], axis=3
+                        )
+                    ] if self.domain=="sgym" else [
+                        np.concatenate(
+                            [obs_list, recons_list], axis=3
                         )
                     ],
                     global_step=step_env,

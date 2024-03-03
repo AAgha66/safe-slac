@@ -3,6 +3,8 @@ from gym.wrappers.transform_observation import TransformObservation
 from gym.wrappers.transform_reward import TransformReward
 from gym.spaces.box import Box
 import numpy as np
+from PIL import Image
+import realworldrl_suite.environments as rwrl
 import safety_gym
 """An observation wrapper that augments observations by pixel values."""
 
@@ -15,7 +17,8 @@ from gym import Wrapper, spaces
 from gym import ObservationWrapper
 from gym.envs.registration import register
 
-
+CONSTRAINT_INDICES = {"cartpole": 0, "walker": 1, "quadruped": 0}
+SAFETY_COEFFS = {"cartpole": 0.3,"walker": 0.3,"quadruped": 0.5}
 STATE_KEY = 'state'
 class ActionRepeatWrapper(Wrapper):
     def __init__(self, env, repeat, binary_cost=False):
@@ -23,7 +26,7 @@ class ActionRepeatWrapper(Wrapper):
         if not type(repeat) is int or repeat < 1:
             raise ValueError("Repeat value must be an integer and greater than 0.")
         self.action_repeat = repeat
-        self._max_episode_steps = env.config["num_steps"]//repeat
+        self._max_episode_steps = 1000//repeat
         self.binary_cost = binary_cost
 
     def step(self, action):
@@ -179,6 +182,57 @@ class PixelObservationWrapper(ObservationWrapper):
 
         return observation
 
+class RWRLBridge(gym.Env):
+    def __init__(self, env, constraint_idx):
+        self._env = env
+        self._constraint_idx = constraint_idx
+
+    @property
+    def action_space(self):
+        spec = self._env.action_spec()
+        return gym.spaces.Box(spec.minimum, spec.maximum, dtype=np.float32)
+
+    @property
+    def observation_space(self):        
+        n_obs = 0
+        dtype=None
+        for k, v in self._env.observation_spec().items():
+            if k == "constraints":
+                continue
+            n_obs += v.shape[0]
+            dtype=v.dtype
+        return gym.spaces.Box(-np.inf, np.inf, np.array([n_obs,]), dtype=dtype)
+    
+    def reset(self):
+        time_step = self._env.reset()        
+        obs, _ = self._get_obs(time_step)
+        return obs
+
+    def _get_obs(self, timestep):
+        arrays = []
+        for k, v in self._env.observation_spec().items():
+            if k == "constraints":
+                cost = 1.0 - timestep.observation["constraints"][self._constraint_idx]                
+            else:
+                array = timestep.observation[k]
+                if v.shape == ():
+                    array = np.array([array])
+                arrays.append(array)
+        obs = np.concatenate(arrays, -1)
+        return obs, cost
+
+    def render(self, mode='human', **kwargs):
+        if 'camera_id' not in kwargs.keys():
+            kwargs['camera_id'] = 0
+        return self._env.physics.render(**kwargs)
+
+    def step(self, action):
+        time_step = self._env.step(action)
+        obs, cost = self._get_obs(time_step)
+        reward = time_step.reward or 0
+        done = time_step.last()
+        return obs, reward, done, {"cost": cost}
+
 gym.logger.set_level(40)
 
 def make_safety(domain_name, image_size, use_pixels=True, action_repeat=1):
@@ -206,3 +260,77 @@ def make_safety(domain_name, image_size, use_pixels=True, action_repeat=1):
     filtered._max_episode_steps = ar_env._max_episode_steps
     
     return filtered
+
+
+def make_rwrl(domain_name, action_repeat=2, episode_length=1000):
+    domain, task = domain_name.rsplit('.', 1)
+    env = rwrl.load(
+            domain_name=domain,
+            task_name=task,
+            safety_spec=dict(
+                enable=True, observations=True, safety_coeff=SAFETY_COEFFS[domain]
+            ),
+            environment_kwargs={'flat_observation': False}
+        )        
+    env = RWRLBridge(env, CONSTRAINT_INDICES[domain])
+    env = gym.wrappers.TimeLimit(env, max_episode_steps=episode_length)
+    env.reset()
+    render_kwargs = {'height': 64,
+                    'width': 64,
+                    'camera_id': 0,
+                    }
+    # env = ActionRepeat(env, action_repeat, sum_cost=False)  # sum costs in suite is safety_gym
+    ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
+    env = RenderedObservation(ar_env, "rgb_image", (64, 64), render_kwargs, crop=None)    
+    return env
+
+class ActionRepeat(Wrapper):
+    def __init__(self, env, repeat, sum_cost=False):
+        assert repeat >= 1, 'Expects at least one repeat.'
+        super(ActionRepeat, self).__init__(env)
+        self.repeat = repeat
+        self.sum_cost = sum_cost
+
+    def step(self, action):
+        done = False
+        total_reward = 0.0
+        current_step = 0
+        total_cost = 0.0
+        while current_step < self.repeat and not done:
+            obs, reward, done, info = self.env.step(action)
+            if self.sum_cost:
+                total_cost += info['cost']
+            total_reward += reward
+            current_step += 1
+        if self.sum_cost:
+            info['cost'] = total_cost  # noqa
+        return obs, total_reward, done, info  # noqa
+
+class RenderedObservation(ObservationWrapper):
+    def __init__(self, env, observation_type, image_size, render_kwargs, crop=None):
+        super(RenderedObservation, self).__init__(env)
+        self._type = observation_type
+        self._size = image_size
+        if observation_type == 'rgb_image':
+            last_dim = 3
+        elif observation_type == 'binary_image':
+            last_dim = 1
+        else:
+            raise RuntimeError("Invalid observation type")
+        self.observation_space = Box(0.0, 255.0, (3,64,64), np.float32)
+        self._render_kwargs = render_kwargs
+        self._crop = crop
+
+    def observation(self, _):
+        image = self.env.render(**self._render_kwargs)
+        image = Image.fromarray(image)
+        if self._crop:
+            w, h = image.size
+            image = image.crop((self._crop[0], self._crop[1], w - self._crop[2], h - self._crop[3]))
+        if image.size != self._size:
+            image = image.resize(self._size, Image.BILINEAR)
+        if self._type == 'binary_image':
+            image = image.convert('L')
+        image = np.array(image, copy=False)
+        #image = np.clip(image, 0, 255).astype(np.float32)
+        return np.moveaxis(image, -1, 0)

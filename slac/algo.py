@@ -112,10 +112,12 @@ class SlacAlgorithm:
             action = env.action_space.sample()
         else:
             action = self.explore(ob)
-        env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.pixels:
+            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         state, reward, done, _ = env.step(action)
         reward = reward
-        env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.pixels:
+            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         mask = False if t == env._max_episode_steps else done
         ob.append(state, action)
 
@@ -124,9 +126,11 @@ class SlacAlgorithm:
         if done:
             t = 0
             state = env.reset()
-            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+            if self.pixels:
+                env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             ob.reset_episode(state)
-            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+            if self.pixels:
+                env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
             self.buffer.reset_episode(state)
 
         return t
@@ -236,7 +240,7 @@ class SafetyCriticSlacAlgorithm:
         start_alpha=3.3e-4,
         start_lagrange=2.5e-2,
         grad_clip_norm=10.0,
-        image_noise=0.1
+        image_noise=0.1,
     ):
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -331,7 +335,7 @@ class SafetyCriticSlacAlgorithm:
 
 
     def preprocess(self, ob):
-        state = torch.tensor(ob.state, dtype=torch.uint8, device=self.device).float().div_(255.0)
+        state = torch.tensor(ob.state, dtype=torch.float32, device=self.device).div_(255.0)
         with torch.no_grad():
             feature = self.latent.encoder(state).view(1, -1)
         action = torch.tensor(ob.action, dtype=torch.float, device=self.device)
@@ -358,7 +362,8 @@ class SafetyCriticSlacAlgorithm:
             action = np.tanh(np.random.normal(loc=0,scale=2, size=env.action_space.shape))*env.action_space.high
         else:
             action = self.explore(ob)
-        env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.pixels:
+            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         state, reward, done, info = env.step(action)
         cost = info["cost"]
         self.lastcost = cost
@@ -532,7 +537,8 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         start_alpha=3.3e-4,
         start_lagrange=2.5e-2,
         grad_clip_norm=10.0,
-        image_noise=0.1
+        image_noise=0.1,
+        domain="sgym"
     ):
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -615,7 +621,7 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
         self.epoch_rewardreturns = []
         self.episode_costreturn = 0
         self.episode_rewardreturn = 0
-        
+        self.domain = domain
         self.loss_averages = defaultdict(lambda : 0)
 
         # JIT compile to speed up.
@@ -633,13 +639,14 @@ class LatentPolicySafetyCriticSlac(SafetyCriticSlacAlgorithm):
             action = np.tanh(np.random.normal(loc=0,scale=2, size=env.action_space.shape))*env.action_space.high
         else:
             action = self.explore(ob)
-        env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
+        if self.domain =="sgym":
+            env.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
         state, reward, done, info = env.step(action)
         cost = info["cost"]
         self.lastcost = cost
         self.episode_costreturn += cost
         self.episode_rewardreturn += reward
-        mask = False if t >= env._max_episode_steps else done
+        mask = False if t >= 1000 else done
         ob.append(state, action)
 
         self.buffer.append(action, reward, mask, state, done, cost)
