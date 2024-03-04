@@ -11,8 +11,7 @@ cd $CLEARML_GIT_ROOT
 # now we need to tell clearml to use the python from our poetry env
 # this is in the general case (we use the system python above, so we could
 # have just hardcoded this as well)
-pip uninstall glfw
-pip install glfw
+pip install -U glfw
 export python_path="/root/miniconda3/envs/safe-slac/bin/python"
 cat > $CLEARML_CUSTOM_BUILD_OUTPUT << EOL
 {
