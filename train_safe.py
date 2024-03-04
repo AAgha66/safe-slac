@@ -12,11 +12,11 @@ from slac.env import make_safety, make_rwrl
 from slac.trainer import Trainer
 import json
 from configuration import get_default_config
+import subprocess
 
-from pyvirtualdisplay import Display
-
-virtual_display = Display(visible=0, size=(1400, 900))
-virtual_display.start()
+xvfb = subprocess.Popen(['Xvfb', ':99'])
+import os
+os.environ["DISPLAY"]=":99"
 
 def get_git_short_hash():
     repo = git.Repo(search_parent_directories=True)
