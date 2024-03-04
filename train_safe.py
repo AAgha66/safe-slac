@@ -1,22 +1,16 @@
 import argparse
 import os
 from datetime import datetime
-import random
 import git
-from matplotlib.pyplot import get
 import clearml
 import torch
 
-from slac.algo import LatentPolicySafetyCriticSlac, SafetyCriticSlacAlgorithm
+from slac.algo import LatentPolicySafetyCriticSlac
 from slac.env import make_safety, make_rwrl
 from slac.trainer import Trainer
 import json
 from configuration import get_default_config
-import subprocess
 
-xvfb = subprocess.Popen(['Xvfb', ':99'])
-import os
-os.environ["DISPLAY"]=":99"
 
 def get_git_short_hash():
     repo = git.Repo(search_parent_directories=True)
@@ -42,7 +36,7 @@ def main(args):
 
     print(f"use_pixels: {config['use_pixels']} !")
 
-    if config["domain_name"]=="Safexp":
+    if config["domain_name"] == "Safexp":
         env = make_safety(
             f'{config["domain_name"]}{"-" if len(config["domain_name"]) > 0 else ""}{config["task_name"]}-v0',
             image_size=config["image_size"],
@@ -56,8 +50,14 @@ def main(args):
             action_repeat=config["action_repeat"],
         )
     else:
-        env = make_rwrl(domain_name="cartpole.realworld_swingup", action_repeat=config["action_repeat"])
-        env_test = make_rwrl(domain_name="cartpole.realworld_swingup", action_repeat=config["action_repeat"])
+        env = make_rwrl(
+            domain_name="cartpole.realworld_swingup",
+            action_repeat=config["action_repeat"],
+        )
+        env_test = make_rwrl(
+            domain_name="cartpole.realworld_swingup",
+            action_repeat=config["action_repeat"],
+        )
     short_hash = get_git_short_hash()
     log_dir = os.path.join(
         "logs",
