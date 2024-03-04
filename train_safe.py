@@ -38,15 +38,15 @@ def main(args):
 
     print(f"use_pixels: {config['use_pixels']} !")
 
-    if args.domain_name=="Safexp":
+    if config["domain_name"]=="Safexp":
         env = make_safety(
-            f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+            f'{config["domain_name"]}{"-" if len(config["domain_name"]) > 0 else ""}{config["task_name"]}-v0',
             image_size=config["image_size"],
             use_pixels=config["use_pixels"],
             action_repeat=config["action_repeat"],
         )
         env_test = make_safety(
-            f'{args.domain_name}{"-" if len(args.domain_name) > 0 else ""}{args.task_name}-v0',
+            f'{config["domain_name"]}{"-" if len(config["domain_name"]) > 0 else ""}{config["task_name"]}-v0',
             image_size=config["image_size"],
             use_pixels=config["use_pixels"],
             action_repeat=config["action_repeat"],
