@@ -13,6 +13,10 @@ from slac.trainer import Trainer
 import json
 from configuration import get_default_config
 
+from pyvirtualdisplay import Display
+
+virtual_display = Display(visible=0, size=(1400, 900))
+virtual_display.start()
 
 def get_git_short_hash():
     repo = git.Repo(search_parent_directories=True)
@@ -83,7 +87,7 @@ def main(args):
         grad_clip_norm=config["grad_clip_norm"],
         tau=config["tau"],
         image_noise=config["image_noise"],
-        domain="rwrl",
+        domain=config["domain_name"],
     )
     trainer = Trainer(
         num_sequences=config["num_sequences"],
@@ -101,7 +105,7 @@ def main(args):
         action_repeat=config["action_repeat"],
         train_steps_per_iter=config["train_steps_per_iter"],
         env_steps_per_train_step=config["env_steps_per_train_step"],
-        domain="rwrl",
+        domain=config["domain_name"],
     )
     trainer.writer.add_text("config", json.dumps(config), 0)
     trainer.train()
