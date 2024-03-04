@@ -13,6 +13,7 @@ pip install -r requirements.txt
 pip install clearml
 pip install torch==1.9.1+cu111 torchvision==0.10.1+cu111 torchaudio==0.9.1 -f https://download.pytorch.org/whl/torch_stable.html
 pip install -e /home/realworldrl_suite
+pip install "gymnasium[mujoco-py, mujoco]"
 # now we need to tell clearml to use the python from our poetry env
 # this is in the general case (we use the system python above, so we could
 # have just hardcoded this as well)
