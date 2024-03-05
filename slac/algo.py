@@ -13,13 +13,13 @@ from slac.utils import create_feature_actions, grad_false, soft_update
 from collections import defaultdict
 import torch.nn.functional
 
-def preprocess_img(ob, device):
-    state = torch.tensor(ob.last_state, dtype=torch.uint8, device=device).float().div_(255.0)
+def preprocess_img(state, device):
+    state = torch.tensor(state, dtype=torch.uint8, device=device).float().div_(255.0)
     return state
         
 
-def preprocess_vector(ob, device):
-    state = torch.tensor(ob.last_state, device=device).float()
+def preprocess_vector(state, device):
+    state = torch.tensor(state, device=device).float()
     return state
 
 class LatentPolicySafetyCriticSlac:
@@ -63,8 +63,12 @@ class LatentPolicySafetyCriticSlac:
         self.steps = 1000/action_repeat
         self.budget = budget*(1 - gamma_c ** (1000/action_repeat)) / (1 - gamma_c)/(1000/action_repeat)
 
+        if pixel_obs:
+            self.preprocess_obs = preprocess_img
+        else:
+            self.preprocess_obs = preprocess_vector
         # Replay buffer.
-        self.buffer = CostReplayBuffer(buffer_size, num_sequences, state_shape, action_shape, device)
+        self.buffer = CostReplayBuffer(buffer_size, num_sequences, state_shape, action_shape, device, self.preprocess_obs)
         self.grad_clip_norm = grad_clip_norm
         # Networks.
         
@@ -130,11 +134,6 @@ class LatentPolicySafetyCriticSlac:
         self.num_sequences = num_sequences
         self.tau = tau
 
-        if pixel_obs:
-            self.preprocess_obs = preprocess_img
-        else:
-            self.preprocess_obs = preprocess_vector
-
         self.epoch_len = 30_000//self.action_repeat
         self.epoch_costreturns = []
         self.epoch_rewardreturns = []
@@ -187,7 +186,7 @@ class LatentPolicySafetyCriticSlac:
         return t
 
     def preprocess(self, ob):
-        state = self.preprocess_obs(ob, self.device)
+        state = self.preprocess_obs(ob.last_state, self.device)
         with torch.no_grad():
             feature = self.latent.encoder(state.unsqueeze(0))
         action = torch.tensor(ob.last_action, dtype=torch.float, device=self.device).unsqueeze(0).unsqueeze(0)
