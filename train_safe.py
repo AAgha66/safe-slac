@@ -32,7 +32,7 @@ def main(args):
         config["task_name"] = args.task_name
         config["seed"] = args.seed
         config["num_steps"] = args.num_steps
-        config["use_pixels"] = args.pixels
+        config["use_pixels"] = args.use_pixels
 
     print(f"use_pixels: {config['use_pixels']} !")
 
@@ -53,10 +53,12 @@ def main(args):
         env = make_rwrl(
             domain_name="cartpole.realworld_swingup",
             action_repeat=config["action_repeat"],
+            pixel_obs=config["use_pixels"],
         )
         env_test = make_rwrl(
             domain_name="cartpole.realworld_swingup",
             action_repeat=config["action_repeat"],
+            pixel_obs=config["use_pixels"],
         )
     short_hash = get_git_short_hash()
     log_dir = os.path.join(
@@ -88,6 +90,7 @@ def main(args):
         tau=config["tau"],
         image_noise=config["image_noise"],
         domain=config["domain_name"],
+        pixel_obs=config["use_pixels"],
     )
     trainer = Trainer(
         num_sequences=config["num_sequences"],
@@ -106,6 +109,7 @@ def main(args):
         train_steps_per_iter=config["train_steps_per_iter"],
         env_steps_per_train_step=config["env_steps_per_train_step"],
         domain=config["domain_name"],
+        pixel_obs=config["use_pixels"],
     )
     trainer.writer.add_text("config", json.dumps(config), 0)
     trainer.train()
@@ -130,7 +134,7 @@ if __name__ == "__main__":
         "--cuda", action="store_true", help="Train using GPU with CUDA"
     )
     parser.add_argument(
-        "--pixels", action="store_true", help="use image observations"
+        "--use_pixels", action="store_true", help="use image observations"
     )
     parser.add_argument(
         "--local", action="store_true", help="not running on cluster"

@@ -5,13 +5,22 @@ import scipy.stats
 import torch
 from torch.optim import Adam, SGD
 from torch.optim.lr_scheduler import MultiStepLR
-from slac.buffer import CostReplayBuffer, ReplayBuffer
-from slac.network import GaussianPolicy, LatentModel, TwinnedQNetwork, SingleQNetwork
+from slac.buffer import CostReplayBuffer
+from slac.network import TwinnedQNetwork, SingleQNetwork
 from slac.network.latent import CostLatentModel
 from slac.network.sac import LatentGaussianPolicy
 from slac.utils import create_feature_actions, grad_false, soft_update
 from collections import defaultdict
 import torch.nn.functional
+
+def preprocess_img(ob, device):
+    state = torch.tensor(ob.last_state, dtype=torch.uint8, device=device).float().div_(255.0)
+    return state
+        
+
+def preprocess_vector(ob, device):
+    state = torch.tensor(ob.last_state, device=device).float()
+    return state
 
 class LatentPolicySafetyCriticSlac:
     """
@@ -42,7 +51,8 @@ class LatentPolicySafetyCriticSlac:
         start_lagrange=2.5e-2,
         grad_clip_norm=10.0,
         image_noise=0.1,
-        domain="sgym"
+        domain="sgym",
+        pixel_obs=True,
     ):
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -63,7 +73,7 @@ class LatentPolicySafetyCriticSlac:
         self.critic_target = TwinnedQNetwork(action_shape, z1_dim, z2_dim, hidden_units)
         self.safety_critic = SingleQNetwork(action_shape, z1_dim, z2_dim, hidden_units, init_output=self.budget)
         self.safety_critic_target = SingleQNetwork(action_shape, z1_dim, z2_dim, hidden_units, init_output=self.budget)
-        self.latent = CostLatentModel(state_shape, action_shape, feature_dim, z1_dim, z2_dim, hidden_units, image_noise=image_noise)
+        self.latent = CostLatentModel(state_shape, action_shape, feature_dim, z1_dim, z2_dim, hidden_units, image_noise=image_noise, pixels_obs=pixel_obs)
         soft_update(self.critic_target, self.critic, 1.0)
         soft_update(self.safety_critic_target, self.safety_critic, 1.0)
         
@@ -120,6 +130,11 @@ class LatentPolicySafetyCriticSlac:
         self.num_sequences = num_sequences
         self.tau = tau
 
+        if pixel_obs:
+            self.preprocess_obs = preprocess_img
+        else:
+            self.preprocess_obs = preprocess_vector
+
         self.epoch_len = 30_000//self.action_repeat
         self.epoch_costreturns = []
         self.epoch_rewardreturns = []
@@ -172,7 +187,7 @@ class LatentPolicySafetyCriticSlac:
         return t
 
     def preprocess(self, ob):
-        state = torch.tensor(ob.last_state, dtype=torch.uint8, device=self.device).float().div_(255.0)
+        state = self.preprocess_obs(ob, self.device)
         with torch.no_grad():
             feature = self.latent.encoder(state.unsqueeze(0))
         action = torch.tensor(ob.last_action, dtype=torch.float, device=self.device).unsqueeze(0).unsqueeze(0)

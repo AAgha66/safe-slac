@@ -75,6 +75,7 @@ class Trainer:
         action_repeat=1,
         train_steps_per_iter=1,
         domain="sgym",
+        pixel_obs=True,
     ):
         # Env to collect samples.
         self.env = env
@@ -114,6 +115,7 @@ class Trainer:
         self.env_steps_per_train_step = env_steps_per_train_step
         self.collect_with_policy = collect_with_policy
         self.domain = domain
+        self.pixel_obs=pixel_obs
 
     def debug_save_obs(self, state, name, step=0):
         self.writer.add_image(
@@ -251,9 +253,10 @@ class Trainer:
                         track = np.moveaxis(track, -1, 0)
                         track_list.append(track)
                 if steps_until_dump_obs == 0:
-                    self.debug_save_obs(
-                        self.ob_test.state[0][-1], "eval", step_env
-                    )
+                    if self.pixel_obs:
+                        self.debug_save_obs(
+                            self.ob_test.state[0][-1], "eval", step_env
+                        )
 
                     reconstruction = (
                         sample_reproduction(
@@ -264,9 +267,10 @@ class Trainer:
                         )[0][-1]
                         * 255
                     )
-                    self.debug_save_obs(
-                        reconstruction, "eval_reconstruction", step_env
-                    )
+                    if self.pixel_obs:
+                        self.debug_save_obs(
+                            reconstruction, "eval_reconstruction", step_env
+                        )
                 steps_until_dump_obs -= 1
                 if self.domain=="sgym":
                     self.env_test.env.env.sim.render_contexts[0].vopt.geomgroup[:] = 1 # render all objects, including hazards
@@ -281,20 +285,21 @@ class Trainer:
 
                 eval_step += 1
             if i == 0:
-                self.writer.add_video(
-                    f"vid/eval",
-                    [
-                        np.concatenate(
-                            [obs_list, recons_list, track_list], axis=3
-                        )
-                    ] if self.domain=="sgym" else [
-                        np.concatenate(
-                            [obs_list, recons_list], axis=3
-                        )
-                    ],
-                    global_step=step_env,
-                    fps=video_fps,
-                )
+                if self.pixel_obs:
+                    self.writer.add_video(
+                        f"vid/eval",
+                        [
+                            np.concatenate(
+                                [obs_list, recons_list, track_list], axis=3
+                            )
+                        ] if self.domain=="sgym" else [
+                            np.concatenate(
+                                [obs_list, recons_list], axis=3
+                            )
+                        ],
+                        global_step=step_env,
+                        fps=video_fps,
+                    )
             reward_returns.append(episode_return)
             cost_returns.append(cost_return)
         self.algo.z1 = None

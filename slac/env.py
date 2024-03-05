@@ -262,7 +262,7 @@ def make_safety(domain_name, image_size, use_pixels=True, action_repeat=1):
     return filtered
 
 
-def make_rwrl(domain_name, action_repeat=2, episode_length=1000):
+def make_rwrl(domain_name, action_repeat=2, episode_length=1000, pixel_obs=False):
     domain, task = domain_name.rsplit('.', 1)
     env = rwrl.load(
             domain_name=domain,
@@ -275,12 +275,13 @@ def make_rwrl(domain_name, action_repeat=2, episode_length=1000):
     env = RWRLBridge(env, CONSTRAINT_INDICES[domain])
     env = gym.wrappers.TimeLimit(env, max_episode_steps=episode_length)
     env.reset()
+    ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
+    if not pixel_obs:
+        return ar_env
     render_kwargs = {'height': 64,
                     'width': 64,
                     'camera_id': 0,
                     }
-    # env = ActionRepeat(env, action_repeat, sum_cost=False)  # sum costs in suite is safety_gym
-    ar_env = ActionRepeatWrapper(env, repeat=action_repeat, binary_cost=True)
     env = RenderedObservation(ar_env, "rgb_image", (64, 64), render_kwargs, crop=None)    
     return env
 
