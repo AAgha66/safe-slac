@@ -27,7 +27,7 @@ class SlacObservation:
         self._state = deque(maxlen=self.num_sequences)
         self._action = deque(maxlen=self.num_sequences - 1)
         for _ in range(self.num_sequences - 1):
-            self._state.append(np.zeros(self.state_shape, dtype=np.uint8))
+            self._state.append(np.zeros(self.state_shape, dtype=np.float32))
             self._action.append(np.zeros(self.action_shape, dtype=np.float32))
         self._state.append(state)
 

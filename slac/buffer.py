@@ -131,7 +131,7 @@ class CostReplayBuffer:
         Sample trajectories for updating latent variable model.
         """
         idxes = np.random.randint(low=0, high=self._n, size=batch_size)
-        state_ = np.empty((batch_size, self.num_sequences + 1, *self.state_shape), dtype=np.uint8)
+        state_ = np.empty((batch_size, self.num_sequences + 1, *self.state_shape), dtype=np.float)
         for i, idx in enumerate(idxes):
             state_[i, ...] = self.state_[idx]
         state_ = self.normalize_obs(state_,self.device)
@@ -142,7 +142,7 @@ class CostReplayBuffer:
         Sample trajectories for updating SAC.
         """
         idxes = np.random.randint(low=0, high=self._n, size=batch_size)
-        state_ = np.empty((batch_size, self.num_sequences + 1, *self.state_shape), dtype=np.uint8)
+        state_ = np.empty((batch_size, self.num_sequences + 1, *self.state_shape), dtype=np.float)
         for i, idx in enumerate(idxes):
             state_[i, ...] = self.state_[idx]
         state_ = self.normalize_obs(state_,self.device)
