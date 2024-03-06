@@ -51,12 +51,12 @@ def main(args):
         )
     else:
         env = make_rwrl(
-            domain_name="cartpole.realworld_swingup",
+            domain_name=config["task_name"],
             action_repeat=config["action_repeat"],
             pixel_obs=config["use_pixels"],
         )
         env_test = make_rwrl(
-            domain_name="cartpole.realworld_swingup",
+            domain_name=config["task_name"],
             action_repeat=config["action_repeat"],
             pixel_obs=config["use_pixels"],
         )
