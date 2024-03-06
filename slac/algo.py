@@ -20,6 +20,7 @@ def preprocess_img(state, device):
 
 def preprocess_vector(state, device):
     state = torch.tensor(state, device=device).float()
+    state = torch.sign(state) * torch.log(torch.abs(state)+1)
     return state
 
 class LatentPolicySafetyCriticSlac:
