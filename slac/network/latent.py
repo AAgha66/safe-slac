@@ -122,7 +122,7 @@ class PropDecoder(torch.jit.ScriptModule):
         self.net = build_mlp(
             input_dim=input_dim,
             output_dim=output_dim,
-            hidden_units=[256]*4,
+            hidden_units=[256]*5,
             hidden_activation=nn.LeakyReLU(inplace=True, negative_slope=0.2),
         ).apply(initialize_weight)
         self.std = std
@@ -145,8 +145,8 @@ class PropEncoder(torch.jit.ScriptModule):
         self.net = build_mlp(
             input_dim=input_dim,
             output_dim=output_dim,
-            hidden_units=[256]*4,
-            hidden_activation=nn.LeakyReLU(inplace=True, negative_slope=0.2),
+            hidden_units=[256]*5,
+            hidden_activation=nn.ELU(inplace=True),
         ).apply(initialize_weight)
 
     @torch.jit.script_method
